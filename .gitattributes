@@ -1,0 +1,16 @@
+# Never line-ending-convert binaries: a mangled .xlsx or .pdf only shows up as a
+# corrupt file after someone clones on a different platform.
+*.pdf   binary
+*.xlsx  binary
+*.xlsm  binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.sqlite3 binary
+
+# Shell scripts run on the Linux server: CRLF would break the shebang.
+*.sh    text eol=lf
