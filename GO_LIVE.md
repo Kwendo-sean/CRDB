@@ -55,6 +55,43 @@ docker compose logs --tail=20 web        # confirm it is serving
 
 Set the key once and keep it — changing it later signs everyone out.
 
+## 2c. If the server already runs nginx on 80/443
+
+Common when the box hosts other subdomains. `docker compose up nginx` then fails
+with `failed to bind host port 0.0.0.0:80/tcp: address already in use`. Check who
+owns them:
+
+```bash
+sudo ss -lptn 'sport = :80 or sport = :443'
+```
+
+Publish this stack on spare ports and let the existing nginx front it, which
+keeps a clean `https://DOMAIN` with no port number for participants:
+
+```bash
+echo "HTTP_PORT=999"   >> .env      # or edit the existing lines
+echo "HTTPS_PORT=9443" >> .env
+docker compose up -d nginx
+
+sudo cp nginx/host-vhost.conf.template /etc/nginx/sites-available/crdb-learning-week
+sudo sed -i 's/__DOMAIN__/YOUR.DOMAIN/g; s/__PORT__/999/g' /etc/nginx/sites-available/crdb-learning-week
+sudo ln -sf /etc/nginx/sites-available/crdb-learning-week /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d YOUR.DOMAIN
+```
+
+Then point Django at the public HTTPS address:
+
+```bash
+sed -i "s|^CSRF_TRUSTED_ORIGINS=.*|CSRF_TRUSTED_ORIGINS=https://YOUR.DOMAIN|" .env
+sed -i "s|^APP_BASE_URL=.*|APP_BASE_URL=https://YOUR.DOMAIN|" .env
+sed -i "s|^DJANGO_SECURE_SSL_REDIRECT=.*|DJANGO_SECURE_SSL_REDIRECT=1|" .env
+docker compose up -d --force-recreate web
+```
+
+The containerised nginx forwards whatever `X-Forwarded-Proto` the outer proxy
+set, so Django sees HTTPS and does not redirect-loop.
+
 ## 3. Preflight — run this before you load any data
 
 ```bash
