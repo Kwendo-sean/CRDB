@@ -11,7 +11,7 @@ import subprocess
 import sys
 import textwrap
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 
 def boot(snippet):
@@ -64,3 +64,40 @@ class AsgiBootTests(SimpleTestCase):
             print("BOOTED")
         """)
         self.assertIn("BOOTED", result.stdout, result.stderr)
+
+
+class HealthcheckReachabilityTests(TestCase):
+    """The container healthcheck must be able to reach /health/.
+
+    docker-compose curls http://localhost:8000/health/ and nginx will not start
+    until that passes. Django answers 400 for any host outside ALLOWED_HOSTS, so
+    dropping localhost from it leaves the web container permanently unhealthy —
+    a failure that looks like a hang, not an error.
+    """
+
+    HEALTHCHECK_HOSTS = ("localhost", "127.0.0.1")
+
+    def test_the_healthcheck_hosts_are_answered(self):
+        """A 400 here means the container can never report healthy."""
+        for host in self.HEALTHCHECK_HOSTS:
+            response = self.client.get("/health/", HTTP_HOST=host, HTTP_X_FORWARDED_PROTO="https")
+            self.assertNotEqual(response.status_code, 400, f"healthcheck host {host} is not in ALLOWED_HOSTS")
+            self.assertEqual(response.status_code, 200, f"healthcheck host {host} did not report ready")
+
+    def test_the_setup_script_keeps_localhost_in_allowed_hosts(self):
+        from pathlib import Path
+        script = Path("server_setup.sh").read_text(encoding="utf-8")
+        for line in script.splitlines():
+            if "upsert DJANGO_ALLOWED_HOSTS" in line:
+                self.assertIn("localhost", line,
+                              "server_setup.sh must keep localhost in ALLOWED_HOSTS or the "
+                              "container healthcheck fails and nginx never starts")
+
+    def test_the_compose_healthcheck_still_targets_a_host_we_allow(self):
+        from pathlib import Path
+        compose = Path("docker-compose.yml").read_text(encoding="utf-8")
+        healthcheck = next(line for line in compose.splitlines() if "health/" in line)
+        self.assertTrue(
+            any(host in healthcheck for host in self.HEALTHCHECK_HOSTS),
+            f"healthcheck targets a host this test does not cover: {healthcheck.strip()}",
+        )
