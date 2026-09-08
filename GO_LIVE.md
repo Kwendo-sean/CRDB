@@ -80,6 +80,18 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d YOUR.DOMAIN
 ```
 
+If `nginx -t` reports `could not build server_names_hash ... bucket_size: 64`,
+the domain is longer than nginx's default bucket. Raise it once in the `http {}`
+block of `/etc/nginx/nginx.conf` and retest:
+
+```
+server_names_hash_bucket_size 128;
+```
+
+It resizes a lookup table only — no routing changes, no effect on other sites,
+and nginx will not reload a config that fails `-t`, so the rest of the box keeps
+serving while you sort it out.
+
 Then point Django at the public HTTPS address:
 
 ```bash

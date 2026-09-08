@@ -10,6 +10,16 @@
 #        /etc/nginx/sites-available/crdb-learning-week
 #   sudo ln -sf /etc/nginx/sites-available/crdb-learning-week /etc/nginx/sites-enabled/
 #   sudo nginx -t && sudo systemctl reload nginx
+#
+# If `nginx -t` fails with:
+#   [emerg] could not build server_names_hash, you should increase
+#           server_names_hash_bucket_size: 64
+# the domain is simply longer than nginx's default hash bucket. Raise it once in
+# the http{} block of /etc/nginx/nginx.conf and retest:
+#   server_names_hash_bucket_size 128;
+# This only resizes a lookup table; it changes no routing and affects no other
+# site. nginx also refuses to reload a config that fails -t, so other vhosts on
+# the box keep serving while you fix it.
 #   sudo certbot --nginx -d crdbxpal-learningweek.predictiveanalyticslab.ai
 
 map $http_upgrade $crdb_connection_upgrade { default upgrade; '' ''; }
