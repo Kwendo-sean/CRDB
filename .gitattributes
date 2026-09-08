@@ -1,5 +1,11 @@
-# Never line-ending-convert binaries: a mangled .xlsx or .pdf only shows up as a
-# corrupt file after someone clones on a different platform.
+# This repository is developed on Windows and deployed to Linux. Anything the
+# server executes or parses must arrive with LF endings: a CRLF shebang makes
+# bash fail with "$'\r': command not found", and CRLF leaks into generated .env
+# values and Dockerfile RUN lines.
+* text=auto eol=lf
+
+# Binaries must never be line-ending converted; a mangled .xlsx or .pdf only
+# shows up as a corrupt file after a clone on another platform.
 *.pdf   binary
 *.xlsx  binary
 *.xlsm  binary
@@ -8,9 +14,8 @@
 *.jpeg  binary
 *.gif   binary
 *.ico   binary
+*.svg   text eol=lf
 *.woff  binary
 *.woff2 binary
 *.sqlite3 binary
-
-# Shell scripts run on the Linux server: CRLF would break the shebang.
-*.sh    text eol=lf
+uv.lock text eol=lf
