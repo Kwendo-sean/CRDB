@@ -202,3 +202,35 @@ class SampleQuizTests(TestCase):
         response = self.client.get(reverse("control-template-download", args=["sample-quiz"]))
         self.assertEqual(response.status_code, 200)
         self.assertIn("sample-quiz-day1", response["Content-Disposition"])
+
+
+class ExpoGamesSheetTests(TestCase):
+    """The shipped expo-games sheet must load the real stand line-up as-is."""
+
+    def test_it_imports_the_three_games(self):
+        from core.workbooks import expo_games
+        summary = import_activity_workbook(write(expo_games()))
+        self.assertEqual(summary["created"], 3)
+        self.assertEqual(
+            sorted(Activity.objects.values_list("code", flat=True)),
+            ["arduino-assembly", "robot-assembly", "vr-games"],
+        )
+
+    def test_the_games_carry_their_points(self):
+        from core.workbooks import expo_games
+        import_activity_workbook(write(expo_games()))
+        self.assertEqual(Activity.objects.get(code="vr-games").points, 200)
+        self.assertEqual(Activity.objects.get(code="robot-assembly").points, 250)
+        self.assertEqual(Activity.objects.get(code="arduino-assembly").points, 250)
+
+    def test_reimporting_does_not_duplicate_or_disturb_awarded_points(self):
+        from core.workbooks import expo_games
+        path = write(expo_games())
+        import_activity_workbook(path)
+        person = Participant.objects.create(full_name="Grace Mushi", staff_id="EG1")
+        from core.services import award_activity
+        award_activity(participant=person, activity=Activity.objects.get(code="vr-games"))
+        summary = import_activity_workbook(path)
+        self.assertEqual((summary["created"], summary["updated"]), (0, 3))
+        self.assertEqual(Activity.objects.count(), 3)
+        self.assertEqual(person.activity_completions.count(), 1)

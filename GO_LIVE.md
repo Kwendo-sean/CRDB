@@ -70,6 +70,20 @@ Control this at **Control Room → System → Event Settings**:
 | `Allowed email domains` | Comma-separated, e.g. `crdbbank.co.tz`. **Blank means any email address on the internet can join and appear on the prize leaderboard.** Set this before opening the doors. |
 | `Self registration collects department` | Off = ask for name and email only. |
 
+## 4b. Load the real line-up on a fresh server
+
+A new server starts with an empty database. Two files in the repo load the real
+content in one command each:
+
+```bash
+docker compose exec web python manage.py import_activities import_templates/expo-games.xlsx
+docker compose exec web python manage.py import_quizzes    import_templates/sample-quiz-day1-ai-infrastructure.xlsx
+```
+
+The first creates VR Games (+200), Robot Assembly (+250) and Arduino Assembly
+(+250) and puts them in the QR scanner's list. The second creates round one with
+its ten questions. Everything else you load from the templates below.
+
 ## 5. Load the event data
 
 All four spreadsheets are downloadable from inside the Control Room, and every

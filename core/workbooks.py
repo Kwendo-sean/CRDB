@@ -351,12 +351,61 @@ def sample_quiz():
     return workbook
 
 
+EXPO_GAMES = [
+    ("vr-games", "VR Games",
+     "Step into the VR station and complete a banking scenario in virtual reality.", 1, 200, "NO"),
+    ("robot-assembly", "Robot Assembly",
+     "Build and program the robot at the assembly bench with the engineering team.", 1, 250, "NO"),
+    ("arduino-assembly", "Arduino Assembly",
+     "Wire and flash an Arduino board to bring a sensor to life.", 1, 250, "NO"),
+]
+
+
+def expo_games():
+    """The three expo games as a ready-to-import sheet.
+
+    Lets a fresh server load the real stand line-up in one command instead of
+    retyping it in the Control Room. Edit the points here or in the Control Room.
+    """
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    _instructions(workbook, "EXPO GAMES — READY TO IMPORT", [
+        "The three interactive games on the expo floor, ready to import as they are.",
+        "",
+        "To load them on a fresh server:",
+        "  docker compose exec web python manage.py import_activities import_templates/expo-games.xlsx",
+        "",
+        "Or upload this file at Control Room > Experiences > Interactive Games > Import from Excel.",
+        "",
+        "After importing, each game appears:",
+        "  on every participant's dashboard under INTERACTIVE GAMES, and",
+        "  in the QR scanner's game list, so a stand operator can award its points.",
+        "",
+        "Change the points by editing the points column and importing again, or in the",
+        "Control Room. Re-importing matches on the code column, so nothing is duplicated",
+        "and no already-awarded points are disturbed.",
+    ])
+    _data_sheet(
+        workbook, "ACTIVITIES",
+        ["code", "name", "description", "day", "points", "repeatable"],
+        EXPO_GAMES,
+        [22, 26, 62, 7, 10, 13],
+        validations=[(4, '"1,2,3,4"'), (6, '"YES,NO"')],
+    )
+    sheet = workbook["ACTIVITIES"]
+    for row in sheet.iter_rows(min_row=2):
+        for cell in row:
+            cell.font = Font()
+    return workbook
+
+
 TEMPLATES = {
     "quiz-questions": ("quiz-questions-template.xlsx", quiz_template),
     "programme-sessions": ("programme-sessions-template.xlsx", session_template),
     "activities": ("interactive-activities-template.xlsx", activity_template),
     "participants": ("participants-template.xlsx", participant_template),
     "sample-quiz": ("sample-quiz-day1-ai-infrastructure.xlsx", sample_quiz),
+    "expo-games": ("expo-games.xlsx", expo_games),
 }
 
 
