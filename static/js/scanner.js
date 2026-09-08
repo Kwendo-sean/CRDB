@@ -60,8 +60,21 @@
   award(document.querySelector('#manual-token')?.value);
  });
 
+ // Browsers only expose a camera on a secure origin. Over plain HTTP the button
+ // would silently do nothing, so say so and send the operator to manual entry.
+ const cameraAvailable = window.isSecureContext && navigator.mediaDevices?.getUserMedia;
+ if (!cameraAvailable) {
+  const stage = document.querySelector('#reader');
+  if (stage) stage.innerHTML =
+   '<div class="alert error"><strong>CAMERA UNAVAILABLE ON THIS ADDRESS</strong>' +
+   '<p>Browsers only allow the camera over HTTPS. Use the pass number below, ' +
+   'or serve this site over HTTPS to scan.</p></div>';
+  document.querySelector('.manual-entry')?.setAttribute('open', 'open');
+ }
+
  document.querySelector('#start-scanner')?.addEventListener('click', async () => {
   if (!target || !target.value) { alert('Choose a game or session first.'); return; }
+  if (!cameraAvailable) { alert('The camera needs HTTPS. Type the pass number instead.'); return; }
   if (!window.Html5Qrcode) { alert('Camera module unavailable — reload with a network connection.'); return; }
   const scanner = new Html5Qrcode('reader');
   document.querySelector('#start-scanner')?.remove();

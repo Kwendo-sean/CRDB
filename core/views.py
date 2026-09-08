@@ -237,6 +237,17 @@ def scanner(request):
     return render(request,"core/scanner.html",{
         "sessions":Session.objects.filter(is_active=True).order_by("starts_at"),
         "activities":Activity.objects.filter(is_active=True).order_by("name")})
+def participant_from_scan(value):
+    """Find a participant from anything a stand operator can produce.
+
+    A camera scan yields the QR token; typing by hand yields the pass number
+    printed on the pass. Both must work, because when the camera is unavailable
+    the printed number is the only thing a person can read off the screen.
+    """
+    value=(value or "").strip()
+    if not value: return None
+    return Participant.objects.filter(Q(qr_token=value)|Q(pass_number__iexact=value),is_active=True).first()
+
 @control_required
 @require_POST
 def api_scan(request):
@@ -249,7 +260,8 @@ def api_scan(request):
         data=json.loads(request.body)
         target=str(data.get("target",""))
         kind,_,raw_id=target.partition(":")
-        participant=Participant.objects.get(qr_token=data["qr_token"],is_active=True)
+        participant=participant_from_scan(data.get("qr_token") or data.get("code"))
+        if participant is None: raise Participant.DoesNotExist
         if kind=="activity":
             activity=Activity.objects.get(pk=int(raw_id),is_active=True)
             _,created=award_activity(participant=participant,activity=activity,actor=request.user)
@@ -276,7 +288,10 @@ def api_scan(request):
 @require_POST
 def api_check_in(request):
     try:
-        data=json.loads(request.body); participant=Participant.objects.get(qr_token=data["qr_token"],is_active=True); session=Session.objects.get(pk=data["session_id"],is_active=True)
+        data=json.loads(request.body)
+        participant=participant_from_scan(data.get("qr_token") or data.get("code"))
+        if participant is None: raise Participant.DoesNotExist
+        session=Session.objects.get(pk=data["session_id"],is_active=True)
         attendance,created=check_in_participant(participant=participant,session=session,actor=request.user)
         return JsonResponse({"status":"success" if created else "already_checked_in","participant":{"name":participant.full_name,"department":participant.department,"registered":SessionRegistration.objects.filter(participant=participant,session=session).exists()},"checked_in_at":attendance.checked_in_at.isoformat()},status=201 if created else 200)
     except (KeyError,ValueError,json.JSONDecodeError,ValidationError,Participant.DoesNotExist,Session.DoesNotExist): return JsonResponse({"error":"invalid_scan"},status=400)

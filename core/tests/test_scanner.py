@@ -107,3 +107,46 @@ class ScannerPageTests(TestCase):
     def test_an_inactive_game_is_not_offered(self):
         Activity.objects.update(is_active=False)
         self.assertNotContains(self.client.get(reverse("scanner")), "VR Games (+200 XP)")
+
+
+class ManualEntryTests(TestCase):
+    """When the camera is unavailable, the printed pass number is the only input.
+
+    Over plain HTTP browsers refuse camera access entirely, so this path is not
+    a fallback — it is the whole scanner.
+    """
+
+    def setUp(self):
+        get_user_model().objects.create_user("ops", password="control-room-pass", is_staff=True)
+        self.client.login(username="ops", password="control-room-pass")
+        self.participant = Participant.objects.create(full_name="Grace Mushi", staff_id="MAN1")
+        self.game = Activity.objects.create(code="vr-games", name="VR Games", day=1, points=200)
+
+    def scan(self, code):
+        return self.client.post(reverse("api-scan"), content_type="application/json",
+                                data=json.dumps({"qr_token": code, "target": f"activity:{self.game.id}"}))
+
+    def test_the_printed_pass_number_is_accepted(self):
+        response = self.scan(self.participant.pass_number)
+        self.assertEqual(response.status_code, 201, "staff must be able to type the number on the pass")
+        self.assertEqual(response.json()["points"], 200)
+
+    def test_the_pass_number_is_case_insensitive(self):
+        self.assertEqual(self.scan(self.participant.pass_number.lower()).status_code, 201)
+
+    def test_surrounding_whitespace_is_tolerated(self):
+        self.assertEqual(self.scan(f"  {self.participant.pass_number}  ").status_code, 201)
+
+    def test_the_qr_token_still_works(self):
+        self.assertEqual(self.scan(self.participant.qr_token).status_code, 201)
+
+    def test_an_unknown_number_is_refused(self):
+        self.assertEqual(self.scan("CRDB-LW-NOPENOPE").status_code, 400)
+
+    def test_an_empty_code_is_refused(self):
+        self.assertEqual(self.scan("").status_code, 400)
+
+    def test_the_scanner_page_offers_manual_entry(self):
+        response = self.client.get(reverse("scanner"))
+        self.assertContains(response, "manual-entry")
+        self.assertContains(response, "Camera not working?")
