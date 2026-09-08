@@ -33,6 +33,28 @@ verifies `/health/`. It stops with a readable message if anything is wrong.
 `DJANGO_SECRET_KEY`, `POSTGRES_PASSWORD`, `DATABASE_URL` and `ACTIVITY_API_KEY`
 are generated for you if left blank.
 
+## 2b. If the web container keeps restarting
+
+`docker compose exec` reporting "Container ... is restarting" means the app is
+crash-looping, not still starting. Waiting will not help. Read the reason:
+
+```bash
+docker compose logs --tail=40 web
+```
+
+The most common cause is an empty `DJANGO_SECRET_KEY` with `DJANGO_DEBUG=0`:
+the app refuses to start rather than run on a known key. `server_setup.sh`
+generates one, so this happens when the stack was started by hand instead. Fix:
+
+```bash
+printf 'DJANGO_SECRET_KEY=%s
+' "$(openssl rand -hex 32)" >> .env
+docker compose up -d --force-recreate web
+docker compose logs --tail=20 web        # confirm it is serving
+```
+
+Set the key once and keep it — changing it later signs everyone out.
+
 ## 3. Preflight — run this before you load any data
 
 ```bash
@@ -195,7 +217,18 @@ sudo ./deploy.sh
 Rebuilds, migrates, recollects static assets and verifies health. Do this
 between rounds, never during one.
 
-## 11. Capacity notes
+## 11. Printed QR posters
+
+```bash
+uv sync --extra dev
+python manage.py make_poster --all-sizes --output print/poster.pdf
+```
+
+A4, A3 and A2 in the Learning Week palette, vector throughout so A2 stays sharp.
+The QR points at `APP_BASE_URL/access/`; override with `--url` or `--headline`.
+Ready-made copies are in `print/`.
+
+## 11b. Capacity notes
 
 Sized and query-shape tested at 2,000 participants:
 

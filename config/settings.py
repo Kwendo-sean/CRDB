@@ -9,7 +9,14 @@ IS_PRODUCTION=not DEBUG
 INSECURE_SECRET="dev-only-change-me"
 SECRET_KEY=os.getenv("DJANGO_SECRET_KEY") or INSECURE_SECRET
 if not DEBUG and SECRET_KEY==INSECURE_SECRET:
- raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set to a unique value when DJANGO_DEBUG=0.")
+ raise ImproperlyConfigured(
+  "DJANGO_SECRET_KEY is empty while DJANGO_DEBUG=0, so the app refuses to start. "
+  "Fix it on the server by running `sudo bash server_setup.sh`, which generates every "
+  "missing secret, or by appending a key to .env yourself: "
+  "printf 'DJANGO_SECRET_KEY=%s\\n' \"$(openssl rand -hex 32)\" >> .env  "
+  "then `docker compose up -d --force-recreate web`. Set it once and keep it: "
+  "changing it later signs everyone out."
+ )
 ALLOWED_HOSTS=[x for x in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",") if x]
 CSRF_TRUSTED_ORIGINS=[x for x in os.getenv("CSRF_TRUSTED_ORIGINS","").split(",") if x]
 INSTALLED_APPS=["django.contrib.admin","django.contrib.auth","django.contrib.contenttypes","django.contrib.sessions","django.contrib.messages","django.contrib.staticfiles","rest_framework","channels","core"]

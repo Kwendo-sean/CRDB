@@ -8,3 +8,4 @@ media/
 .coverage
 htmlcov/
 .pytest_cache/
+print/_*.png
