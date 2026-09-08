@@ -1,0 +1,29 @@
+[project]
+name = "crdb-learning-week"
+version = "0.1.0"
+description = "CRDB X Predictive Analytics Lab Learning Week participation layer"
+requires-python = ">=3.12"
+dependencies = [
+  "Django>=5.2,<5.3",
+  "djangorestframework>=3.15",
+  "channels>=4.1",
+  "celery>=5.4",
+  "whitenoise>=6.8",
+  "django-ratelimit>=4.1",
+  "qrcode[pil]>=8.0",
+  "openpyxl>=3.1",
+  "psycopg[binary]>=3.2",
+  "redis>=5.2",
+  "dj-database-url>=2.3",
+  "cryptography>=44",
+  "PyJWT[crypto]>=2.10",
+  "google-api-python-client>=2.160",
+  "google-auth>=2.38",
+  "channels-redis>=4.2",
+  "gunicorn>=23.0",
+  "uvicorn[standard]>=0.34",
+]
+[project.optional-dependencies]
+dev = ["coverage>=7.6"]
+[tool.uv]
+package = false

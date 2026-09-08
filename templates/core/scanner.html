@@ -1,0 +1,46 @@
+{% extends 'control/base.html' %}{% load static %}{% block title %}QR Scanner{% endblock %}
+{% block content %}
+<section class="control-page scanner-page">
+<div class="page-heading">
+  <div><p class="section-no">CONTROL / SCAN &amp; AWARD</p><h1>LEARNING PASS SCANNER</h1></div>
+  <span class="status-live">CAMERA / READY</span>
+</div>
+
+<div class="scanner-grid">
+  <div>
+    <label for="scan-target"><b>1.</b> WHAT ARE YOU SCANNING FOR?</label>
+    <select id="scan-target" class="scan-target">
+      <option value="">Choose a game or session</option>
+      {% if activities %}<optgroup label="EXPO GAMES — AWARDS POINTS">{% for activity in activities %}<option value="activity:{{ activity.id }}">{{ activity.name }} (+{{ activity.points }} XP)</option>{% endfor %}</optgroup>{% endif %}
+      {% if sessions %}<optgroup label="SESSION CHECK-IN">{% for session in sessions %}<option value="session:{{ session.id }}">{{ session.title }}</option>{% endfor %}</optgroup>{% endif %}
+    </select>
+    <p class="scan-hint">Pick once at the start of your shift. It stays selected between scans.</p>
+
+    <label><b>2.</b> SCAN THE PASS</label>
+    <div id="reader" class="camera-stage"><span>CAMERA FEED</span>
+      <button id="start-scanner" class="button primary" type="button">START SCANNING</button>
+    </div>
+    <details class="manual-entry"><summary>Camera not working? Enter the pass number</summary>
+      <input id="manual-token" type="text" placeholder="CRDB-LW-XXXXXXXX or scanned link" autocapitalize="characters">
+      <button class="button ghost" id="confirm-checkin" type="button">AWARD MANUALLY</button>
+    </details>
+  </div>
+
+  <aside id="scan-result" class="scan-result">
+    {% if scanned_participant %}
+      <p class="signal">✓ PASS RECOGNISED</p>
+      <h2>{{ scanned_participant.full_name }}</h2>
+      <p>{{ scanned_participant.department|default:'CRDB PARTICIPANT' }}</p>
+      <input id="manual-token" type="hidden" value="{{ scanned_participant.qr_token }}">
+      <p class="scan-hint">Choose a game above, then confirm.</p>
+      <button class="button primary" id="confirm-checkin" type="button">AWARD POINTS</button>
+    {% else %}
+      <p>SCAN RESULT / WAITING</p>
+      <h2>POINT CAMERA<br>AT LEARNING PASS</h2>
+    {% endif %}
+  </aside>
+</div>
+</section>
+{% endblock %}
+
+{% block scripts %}<script src="{% static 'vendor/html5-qrcode.min.js' %}"></script><script src="{% static 'js/scanner.js' %}"></script>{% endblock %}

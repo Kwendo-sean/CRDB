@@ -1,0 +1,69 @@
+{% extends 'core/base.html' %}{% block title %}My Points{% endblock %}{% block content %}
+<section class="dashboard-shell journey-dashboard">
+
+<header class="journey-head">
+  <div><p class="section-no">PARTICIPANT / ACTIVE</p><h1>GOOD TO SEE YOU,<br><span>{{ participant.full_name|upper }}.</span></h1></div>
+  <a class="pass-shortcut" href="{% url 'learning-pass' %}"><small>LEARNING PASS</small><strong>{{ participant.pass_number }}</strong><b>OPEN QR &rarr;</b></a>
+</header>
+
+<section class="points-headline">
+  <div class="points-total">
+    <small>MY TOTAL POINTS</small>
+    <strong>{{ points.total }}</strong>
+    <a class="text-link" href="{% url 'leaderboard' %}">SEE THE LEADERBOARD &rarr;</a>
+  </div>
+  <div class="points-split">
+    <article><small>QUIZ POINTS</small><strong>{{ points.competition.weekly_score }}</strong><span>OFFICIAL COMPETITION</span></article>
+    <article><small>GAME &amp; ACTIVITY XP</small><strong>{{ points.xp }}</strong><span>LEARNING XP</span></article>
+  </div>
+</section>
+
+<section class="play-block">
+  <header><p class="section-no">QUIZZES</p><h2>OFFICIAL ROUNDS</h2></header>
+  <div class="play-grid">
+    {% for row in quizzes %}
+    <article class="play-tile theme-{{ row.quiz.theme_key|default:'default' }}">
+      <div><span>{{ row.questions }} QUESTIONS</span><em class="state-{{ row.quiz.state }}">{{ row.label }}</em></div>
+      <h3>{{ row.quiz.title }}</h3>
+      <p>{{ row.experience.description|default:'Ten questions. One thousand points each.' }}</p>
+      {% if row.open %}
+        <a class="button primary" href="{% url 'quiz-play' row.quiz.id %}">{% if row.joined %}RETURN TO ROUND{% else %}ENTER ROUND{% endif %} &rarr;</a>
+      {% else %}
+        <b class="tile-locked">{{ row.label }}</b>
+      {% endif %}
+    </article>
+    {% empty %}
+    <div class="empty-state"><strong>NO ROUNDS YET</strong><p>Official quiz rounds appear here once they are scheduled.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="play-block">
+  <header><p class="section-no">INTERACTIVE GAMES</p><h2>ON THE EXPO FLOOR</h2></header>
+  <div class="play-grid">
+    {% for row in games %}
+    <article class="play-tile game-tile{% if row.done %} is-done{% endif %}">
+      <div><span>EXPO FLOOR</span><em>{% if row.done %}COMPLETE &check;{% else %}+{{ row.experience.completion_points }} XP{% endif %}</em></div>
+      <h3>{{ row.experience.title }}</h3>
+      <p>{{ row.experience.description|default:'Visit the stand to take part.' }}</p>
+      {% if row.experience.type == 'pal_challenge' %}
+        <a class="button primary" href="{% url 'pal-launch' %}">START &nearr;</a>
+      {% elif row.done %}
+        <b class="tile-locked">POINTS AWARDED</b>
+      {% else %}
+        <b class="tile-locked">SHOW YOUR QR AT THE STAND</b>
+      {% endif %}
+    </article>
+    {% empty %}
+    <div class="empty-state"><strong>NO GAMES YET</strong><p>Interactive games and stand challenges appear here once they are set up.</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+{% if competition.daily %}
+<section class="performance"><p class="section-no">MY QUIZ RESULTS</p>
+  <div class="quiz-score-row">{% for row in competition.daily %}<article><small>{{ row.quiz|truncatechars:24|upper }}</small><strong>{{ row.score }}</strong><span>{{ row.correct }} CORRECT{% if row.rank %} &middot; RANK #{{ row.rank }}{% endif %}</span></article>{% endfor %}</div>
+</section>
+{% endif %}
+
+</section>{% endblock %}

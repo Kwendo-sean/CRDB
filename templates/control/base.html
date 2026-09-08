@@ -1,0 +1,22 @@
+{% load static %}<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080909"><title>{% block title %}Control Room{% endblock %} / CRDB Learning Week</title><link rel="stylesheet" href="{% static 'css/control.css' %}"></head><body class="control-body"><aside class="control-sidebar"><a class="control-brand" href="{% url 'control-room' %}"><strong>CRDB</strong><span>× PAL</span><small>LEARNING WEEK<br>CONTROL ROOM</small></a><nav>
+<a href="{% url 'control-room' %}"><b>01</b> Overview</a>
+<p>RUN THE EVENT</p>
+<a href="{% url 'control-quizzes' %}">Quizzes &amp; Live Control</a>
+<a href="{% url 'control-activities' %}">Interactive Games</a>
+<a href="{% url 'projector-weekly' %}">Leaderboard / Projector</a>
+<a href="{% url 'scanner' %}">QR Scanner / Award Points</a>
+<p>PEOPLE &amp; RESULTS</p>
+<a href="{% url 'control-participants' %}">Participants</a>
+<a href="{% url 'control-competition' %}">Scores &amp; Prizes</a>
+<a href="{% url 'control-analytics' %}">Analytics</a>
+<p>SET UP</p>
+<a href="{% url 'control-experience-create' %}">+ Create Experience</a>
+<a href="{% url 'control-experiences' %}">All Experiences</a>
+<a href="{% url 'control-sessions' %}">Sessions (staff check-in)</a>
+<a href="{% url 'control-rewards' %}">Badges &amp; XP Rules</a>
+<a href="{% url 'control-settings' %}">Event Settings</a>
+<details class="nav-more"><summary>More</summary>
+<a href="{% url 'control-integrations' %}">Google Forms / PAL</a>
+<a href="{% url 'control-audit' %}">Audit Log</a>
+</details>
+</nav><footer><span>{{ request.user.username|upper }}</span><a href="{% url 'control-logout' %}">SIGN OUT →</a></footer></aside><main class="control-main"><div class="control-topbar"><button type="button" data-sidebar-toggle>MENU</button><span>EVENT OPERATIONS</span><a class="topbar-scan" href="{% url 'scanner' %}">SCAN A PASS</a><i>● SYSTEM ONLINE</i></div>{% if messages %}<div class="messages">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}{% block content %}{% endblock %}</main><script>document.querySelector('[data-sidebar-toggle]')?.addEventListener('click',()=>document.body.classList.toggle('sidebar-open'));</script>{% block scripts %}{% endblock %}</body></html>

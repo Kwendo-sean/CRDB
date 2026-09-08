@@ -1,0 +1,108 @@
+name: crdb-learning-week
+x-app: &app
+  build: .
+  env_file: .env
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - static_volume:/app/staticfiles
+    - media_volume:/app/media
+  networks: [backend]
+  logging:
+    driver: local
+    options: {max-size: "10m", max-file: "3"}
+services:
+  web:
+    <<: *app
+    command: gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --timeout 60 --access-logfile -
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "-H", "X-Forwarded-Proto: https", "http://localhost:8000/health/"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+  celery:
+    <<: *app
+    command: celery -A config worker --loglevel=INFO --concurrency=${CELERY_CONCURRENCY:-2}
+    healthcheck:
+      disable: true
+  celery-beat:
+    <<: *app
+    command: celery -A config beat --loglevel=INFO --schedule=/var/run/celery/celerybeat-schedule --pidfile=/var/run/celery/celerybeat.pid
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - celerybeat_data:/var/run/celery
+    healthcheck:
+      disable: true
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_volume:/var/www/static:ro
+      - media_volume:/var/www/media:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks: [edge, backend]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health/"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+  celerybeat_data:
+networks:
+  edge:
+  backend:
+    internal: true

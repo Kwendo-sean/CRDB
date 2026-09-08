@@ -1,0 +1,60 @@
+upstream learning_week_app { server web:8000; keepalive 32; }
+
+# Only echo "upgrade" for requests that actually asked for one. Sending
+# Connection: upgrade on every proxied request breaks keepalive reuse.
+map $http_upgrade $connection_upgrade { default upgrade; '' ''; }
+
+server {
+    listen 80;
+    server_name __DOMAIN__;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name __DOMAIN__;
+    ssl_certificate /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/__DOMAIN__/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(self), geolocation=(), microphone=()" always;
+    client_max_body_size 20m;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+
+    location /static/ { alias /var/www/static/; expires 30d; add_header Cache-Control "public, immutable"; access_log off; }
+    location /media/ { alias /var/www/media/; expires 1d; add_header X-Content-Type-Options nosniff; }
+
+    # Live quiz sockets idle between questions while the host is speaking, so they
+    # need a far longer read timeout than an ordinary page request.
+    location /ws/ {
+        proxy_pass http://learning_week_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    location / {
+        proxy_pass http://learning_week_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 75s;
+    }
+}

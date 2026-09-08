@@ -1,0 +1,13 @@
+{% extends 'control/base.html' %}{% block title %}{{ heading|title }}{% endblock %}{% block content %}
+<header class="control-heading"><div><p>{{ kicker }}</p><h1>{{ heading }}</h1></div><a class="control-secondary" href="{{ back_url }}">← BACK</a></header>
+<section class="control-panel padded"><header><div><small>STEP 1</small><h2>DOWNLOAD THE TEMPLATE</h2></div></header>
+<p>The template carries the exact column names, an INSTRUCTIONS sheet and two worked example rows to overwrite. Dropdowns guard the columns that only accept fixed values.</p>
+<p><a class="control-primary" href="{% url 'control-template-download' template_key %}">DOWNLOAD .XLSX TEMPLATE ↓</a></p></section>
+<form method="post" enctype="multipart/form-data" class="upload-panel">{% csrf_token %}
+<b>STEP 2</b><h2>UPLOAD YOUR COMPLETED FILE</h2>
+<p>{{ blurb }}</p>
+<p>Nothing is saved unless every row passes validation. If a row is wrong, the exact row number and reason appear at the top of this page and no changes are applied.</p>
+<input type="file" name="workbook" accept=".xlsx,.csv" required>
+<div class="action-strip"><button class="control-primary" type="submit">IMPORT</button></div>
+</form>
+{% endblock %}

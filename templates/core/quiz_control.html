@@ -1,0 +1,103 @@
+{% extends 'control/base.html' %}{% block title %}Live Control{% endblock %}{% block content %}
+<section class="control-page host-console" data-refresh="{% if running %}2{% else %}10{% endif %}">
+<div class="page-heading">
+  <div><p class="section-no">LIVE CONTROL / DAY {{ quiz.day }}</p><h1>{{ quiz.title|upper }}</h1></div>
+  <span class="status-live">{{ live_state|upper }}</span>
+</div>
+
+<div class="metric-grid">
+  <article><small>PLAYERS</small><strong>{{ players }}</strong><span>IN THIS ROUND</span></article>
+  <article><small>QUESTION</small><strong>{% if question %}{{ question.number|stringformat:'02d' }}{% else %}—{% endif %}</strong><span>OF {{ total_questions|stringformat:'02d' }}</span></article>
+  <article><small>ANSWERS IN</small><strong>{{ response_count }}</strong><span>OF {{ players }}</span></article>
+  <article><small>TIME LEFT</small><strong id="host-timer" data-seconds="{{ seconds_left }}">{% if seconds_left %}{{ seconds_left }}s{% else %}—{% endif %}</strong><span>ON THIS QUESTION</span></article>
+</div>
+
+{% if quiz.auto_run %}
+  {% if quiz.state == 'draft' %}
+    <div class="host-primary"><p class="host-hint">This round is still a draft. Publish it before going live.</p></div>
+  {% elif not running %}
+    <form method="post" action="{% url 'quiz-control-action' quiz.id %}" class="host-primary">{% csrf_token %}
+      <button class="button primary big" name="action" value="start_round">START THE ROUND &rarr;</button>
+      <p class="host-hint">
+        All {{ total_questions }} questions launch now and run on their own timers.
+        {{ quiz.lobby_seconds }}s countdown, then each question opens, closes and reveals by itself.
+        You do not press anything again.
+      </p>
+    </form>
+  {% else %}
+    <div class="host-primary running">
+      {% if live_state == 'lobby' %}
+        <strong class="host-count" id="host-countdown" data-seconds="{{ starts_in }}">{{ starts_in }}</strong>
+        <p class="host-hint">Question 01 opens automatically. Players joining now will be included.</p>
+      {% elif live_state == 'finished' %}
+        <strong class="host-count">DONE</strong>
+        <p class="host-hint">All questions have played. Generate results under Scores &amp; Prizes.</p>
+      {% else %}
+        <strong class="host-count">RUNNING</strong>
+        <p class="host-hint">The round is advancing on its own. Nothing to press &mdash; this screen follows along.</p>
+      {% endif %}
+      <p class="host-progress">{% if ends_at %}ENDS AT {{ ends_at|date:'H:i:s' }}{% endif %}</p>
+    </div>
+  {% endif %}
+{% else %}
+  <form method="post" action="{% url 'quiz-control-action' quiz.id %}" class="host-primary">{% csrf_token %}
+    {% if quiz.state == 'draft' %}
+      <p class="host-hint">This round is still a draft. Publish it before going live.</p>
+    {% elif quiz.state == 'lobby' %}
+      <button class="button primary big" name="action" value="next_question">START QUESTION 01 &rarr;</button>
+      <p class="host-hint">Host-paced round: you advance each question yourself.</p>
+    {% elif quiz.state == 'question_open' %}
+      <button class="button primary big" name="action" value="close_question">CLOSE NOW &amp; SHOW ANSWER</button>
+      <p class="host-hint">Closes by itself at zero. Press only to end early.</p>
+    {% elif upcoming %}
+      <button class="button primary big" name="action" value="next_question">NEXT: QUESTION {{ upcoming.number|stringformat:'02d' }} &rarr;</button>
+      <p class="host-hint">Host-paced round: one press per question.</p>
+    {% else %}
+      <button class="button primary big" name="action" value="end_quiz">END THE ROUND &rarr;</button>
+      <p class="host-hint">All {{ total_questions }} questions are done.</p>
+    {% endif %}
+  </form>
+{% endif %}
+
+{% if question %}
+<article class="host-question">
+  <p>QUESTION {{ question.number|stringformat:'02d' }} / {{ question.time_limit_seconds }} SEC</p>
+  <h2>{{ question.text }}</h2>
+  <div class="answer-analytics">{% for choice in answer_counts %}<span class="{% if live_state != 'question_open' %}{% if choice.is_correct %}is-correct{% else %}is-wrong{% endif %}{% endif %}">{% if choice.number == 1 %}A{% elif choice.number == 2 %}B{% elif choice.number == 3 %}C{% else %}D{% endif %} / {{ choice.response_count }}{% if live_state != 'question_open' %}{% if choice.is_correct %} &check;{% endif %}{% endif %}</span>{% endfor %}</div>
+  {% if live_state != 'question_open' %}<p class="host-note">HOST NOTE / {{ question.host_note }}</p>{% endif %}
+</article>
+{% endif %}
+
+<details class="host-more"><summary>Other controls</summary>
+  <form method="post" action="{% url 'quiz-control-action' quiz.id %}" class="control-actions">{% csrf_token %}
+    {% if quiz.auto_run and running %}<button class="button ghost" name="action" value="abort_round">STOP &amp; RESET THE ROUND</button>{% endif %}
+    <button class="button ghost" name="action" value="open_lobby">REOPEN LOBBY</button>
+    <button class="button ghost" name="action" value="show_leaderboard">SHOW LEADERBOARD</button>
+    <button class="button ghost" name="action" value="end_quiz">END ROUND</button>
+    <select name="question_id" aria-label="Jump to a specific question">{% for q in quiz.questions.all %}<option value="{{ q.id }}"{% if question and q.id == question.id %} selected{% endif %}>QUESTION {{ q.number|stringformat:'02d' }}</option>{% endfor %}</select>
+    <button class="button ghost" name="action" value="open_question">JUMP TO THAT QUESTION</button>
+  </form>
+  <p class="host-hint">Only for correcting a mistake. Jumping to a question switches this round to host-paced.</p>
+</details>
+
+<p class="host-links"><a href="{% url 'projector-daily' quiz.id %}" target="_blank" rel="noopener">OPEN PROJECTOR VIEW &nearr;</a> <a href="{% url 'control-quiz-detail' quiz.id %}">ROUND SETUP</a></p>
+</section>
+
+<script>
+(() => {
+ const stage = document.querySelector('.host-console'); if (!stage) return;
+ const every = Number(stage.dataset.refresh || 10) * 1000;
+ let timer = setTimeout(() => location.reload(), every);
+ document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); });
+ const count = (el, suffix) => {
+  if (!el) return;
+  let left = Number(el.dataset.seconds || 0);
+  if (left <= 0) return;
+  const tick = () => { el.textContent = left > 0 ? left + suffix : '—'; if (left-- > 0) setTimeout(tick, 1000); };
+  tick();
+ };
+ count(document.getElementById('host-timer'), 's');
+ count(document.getElementById('host-countdown'), '');
+})();
+</script>
+{% endblock %}

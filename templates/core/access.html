@@ -1,0 +1,37 @@
+{% extends 'core/base.html' %}{% block title %}{% if registering %}Join Learning Week{% else %}Access Learning Pass{% endif %}{% endblock %}{% block content %}
+<section class="access-shell">
+<div>
+  <p class="section-no">{% if registering %}02 / JOIN{% else %}01 / IDENTITY{% endif %}</p>
+  {% if registering %}<h1>ONE LAST<br><span>STEP.</span></h1><p class="lede">We have not seen you yet. Add your name and you are in — no password, no forms.</p>
+  {% else %}<h1>ACCESS YOUR<br><span>LEARNING PASS.</span></h1><p class="lede">Enter your work email. If you are new, you can join on the next screen.</p>{% endif %}
+</div>
+
+<div class="access-panel">
+{% if registering %}
+  <p class="status-line"><span class="live-dot"></span> REGISTRATION / OPEN</p>
+  <form method="post" novalidate>{% csrf_token %}<input type="hidden" name="step" value="register">
+    {% if form.non_field_errors %}<div class="alert error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label|upper }}</label>
+      {{ field }}
+      {% if field.help_text %}<small class="field-hint">{{ field.help_text }}</small>{% endif %}
+      {% for error in field.errors %}<small class="field-error" role="alert">{{ error }}</small>{% endfor %}
+    {% endfor %}
+    <button class="button primary" type="submit">JOIN LEARNING WEEK <span>&rarr;</span></button>
+  </form>
+  <p class="secondary-action"><a href="{% url 'participant-access' %}">&larr; Already have a pass? Sign in instead</a></p>
+{% else %}
+  <p class="status-line"><span class="live-dot"></span> IDENTITY LOOKUP / READY</p>
+  <form method="post">{% csrf_token %}
+    <label for="identity">WORK EMAIL{% if not event.self_registration_enabled %} / STAFF ID{% endif %}</label>
+    <input id="identity" name="identity" type="text" inputmode="email" autocapitalize="none" autocomplete="username" required autofocus placeholder="name@crdbbank.co.tz">
+    <button class="button primary" type="submit">CONTINUE <span>&rarr;</span></button>
+  </form>
+  {% if throttled %}<div class="alert error" role="alert"><strong>TOO MANY ATTEMPTS</strong><p>Wait a minute, then try again.</p></div>{% endif %}
+  {% if not_found %}<div class="alert error" role="alert"><strong>NOT REGISTERED</strong><p>{% if event.self_registration_enabled %}That address is not on the list.{% else %}Complete the official Learning Week registration first.{% endif %}</p>{% if OFFICIAL_REGISTRATION_URL and not event.self_registration_enabled %}<a href="{{ OFFICIAL_REGISTRATION_URL }}">REGISTER NOW &nearr;</a>{% endif %}</div>{% endif %}
+  {% if event.self_registration_enabled %}<div class="secure-note"><b>FIRST TIME?</b><p>Just enter your email above. We will ask for your name on the next screen and issue your Learning Pass straight away.</p></div>{% endif %}
+{% endif %}
+  <div class="secure-note"><b>SECURE ACCESS</b><p>Your pass uses a private session. The QR never exposes personal information.</p></div>
+</div>
+</section>
+{% endblock %}
